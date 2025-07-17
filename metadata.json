@@ -1,0 +1,148 @@
+{
+  "package": {
+    "name": "neuropul-trae-awakens-flow",
+    "version": "1.0.0",
+    "description": "Telegram WebApp XP Logic for Neuropul AI – Generate PDF, reward XP, and engage user.",
+    "author": "Neuropul AI Core",
+    "license": "MIT",
+    "created": "2025-01-16T15:30:00Z",
+    "lastModified": "2025-01-16T15:30:00Z"
+  },
+  "project": {
+    "type": "telegram-webapp-flow",
+    "category": "ai-automation",
+    "platform": "bolt-new",
+    "framework": "telegram-bot-api",
+    "language": "json",
+    "complexity": "advanced",
+    "estimatedSetupTime": "15-30 minutes"
+  },
+  "features": [
+    "Telegram WebApp Integration",
+    "InitData Validation",
+    "XP-based Branching Logic",
+    "PDF Generation",
+    "API Integration",
+    "Error Handling",
+    "Analytics Tracking",
+    "Mobile Optimization",
+    "Auto-retry Mechanisms",
+    "Graceful Degradation"
+  ],
+  "requirements": {
+    "platform": "Bolt New",
+    "telegram": {
+      "botToken": "required",
+      "webAppUrl": "required",
+      "initDataValidation": true
+    },
+    "apis": {
+      "syncProgress": "/api/sync-progress",
+      "pdfGeneration": "/api/pdf"
+    },
+    "database": "Supabase (recommended)",
+    "storage": "PDF file storage required"
+  },
+  "configuration": {
+    "xpThresholds": {
+      "low": 0,
+      "medium": 50,
+      "high": 100
+    },
+    "timeouts": {
+      "apiCall": 30000,
+      "pdfGeneration": 60000
+    },
+    "retrySettings": {
+      "maxAttempts": 3,
+      "backoffMultiplier": 2
+    }
+  },
+  "files": {
+    "trae-flow.json": {
+      "description": "Main flow definition for Bolt New",
+      "type": "flow-config",
+      "size": "~15KB",
+      "nodes": 12,
+      "connections": 13
+    },
+    "readme.txt": {
+      "description": "Setup and usage instructions",
+      "type": "documentation",
+      "size": "~3KB"
+    },
+    "metadata.json": {
+      "description": "Project metadata and configuration",
+      "type": "metadata",
+      "size": "~2KB"
+    },
+    "schema.png": {
+      "description": "Visual flow diagram",
+      "type": "diagram",
+      "format": "SVG",
+      "size": "~5KB"
+    }
+  },
+  "deployment": {
+    "steps": [
+      "Import trae-flow.json to Bolt New",
+      "Configure Telegram Bot integration",
+      "Set up API endpoints",
+      "Configure database connections",
+      "Test with sample initData",
+      "Deploy to production"
+    ],
+    "environment": {
+      "development": "Local Bolt New instance",
+      "staging": "Telegram Test Environment",
+      "production": "Live Telegram Bot"
+    }
+  },
+  "analytics": {
+    "events": [
+      "flow-started",
+      "initdata-validated",
+      "api-sync-completed",
+      "xp-checked",
+      "pdf-generated",
+      "flow-completed"
+    ],
+    "metrics": [
+      "completion-rate",
+      "error-rate",
+      "pdf-generation-success",
+      "user-xp-distribution"
+    ]
+  },
+  "support": {
+    "documentation": "readme.txt",
+    "visualGuide": "schema.png",
+    "contact": "neuropul-ai-core@example.com",
+    "repository": "https://github.com/neuropul-ai/trae-awakens-flow",
+    "issues": "https://github.com/neuropul-ai/trae-awakens-flow/issues"
+  },
+  "changelog": {
+    "1.0.0": {
+      "date": "2025-01-16",
+      "changes": [
+        "Initial release",
+        "Complete flow implementation",
+        "Telegram WebApp integration",
+        "XP-based logic",
+        "PDF generation",
+        "Error handling",
+        "Analytics integration"
+      ]
+    }
+  },
+  "tags": [
+    "telegram",
+    "webapp",
+    "xp-system",
+    "pdf-generation",
+    "neuropul-ai",
+    "automation",
+    "bot-flow",
+    "user-engagement"
+  ]
+}

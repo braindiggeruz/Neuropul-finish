@@ -1,0 +1,518 @@
+{
+  "id": "neuropul-trae-awakens-final-v1",
+  "name": "Neuropul Trae Awakens - Final Build",
+  "version": "1.0.1",
+  "description": "Complete Telegram WebApp XP Logic for Neuropul AI – Generate PDF, reward XP, and engage user with full production config.",
+  "author": "Neuropul AI Core",
+  "type": "telegram-webapp-flow",
+  "platform": "bolt-typebot",
+  "created": "2025-01-16T15:30:00Z",
+  "lastModified": "2025-01-16T16:00:00Z",
+  "environment": {
+    "production": true,
+    "telegram": {
+      "botToken": "6658801962:AAEvGpN-NZ2TUzS9aFcWXBKhDLrOhvTjlYM",
+      "webAppUrl": "https://neuropul-trae-ai.netlify.app",
+      "initDataValidation": true
+    },
+    "apis": {
+      "baseUrl": "https://neuropul-trae-ai.netlify.app",
+      "syncProgress": "/api/sync-progress",
+      "pdfGeneration": "/api/pdf",
+      "timeout": 30000
+    },
+    "storage": {
+      "cloudflare": {
+        "accountId": "14ce9e04574f2e6d825e56ee603e5cd5",
+        "r2Endpoint": "https://14ce9e04574f2e6d825e56ee603e5cd5.r2.cloudflarestorage.com",
+        "bucketName": "neuropul-cdn"
+      }
+    }
+  },
+  "variables": {
+    "initData": {
+      "type": "string",
+      "description": "Telegram WebApp initData for user validation",
+      "required": true,
+      "validation": {
+        "minLength": 100,
+        "pattern": "^query_id=.*&user=.*&auth_date=.*&hash=.*$"
+      }
+    },
+    "userId": {
+      "type": "string",
+      "description": "Telegram user ID extracted from initData",
+      "required": true
+    },
+    "userXP": {
+      "type": "number",
+      "description": "Current user XP level",
+      "default": 0,
+      "min": 0,
+      "max": 10000
+    },
+    "pdfUrl": {
+      "type": "string",
+      "description": "Generated PDF download URL",
+      "required": false
+    },
+    "questStep": {
+      "type": "number",
+      "description": "Current quest progression step",
+      "default": 0,
+      "min": 0,
+      "max": 100
+    },
+    "userLevel": {
+      "type": "string",
+      "description": "User level classification",
+      "enum": ["awakening", "lost-soul", "hacker-ready"]
+    }
+  },
+  "nodes": [
+    {
+      "id": "start-node-001",
+      "type": "start",
+      "name": "Flow Start",
+      "description": "Entry point for Trae Awakens flow",
+      "position": { "x": 100, "y": 100 },
+      "properties": {
+        "trigger": "webapp-load",
+        "autoStart": true,
+        "analytics": {
+          "event": "flow-started",
+          "track": true
+        }
+      },
+      "outputs": ["connection-001"]
+    },
+    {
+      "id": "initdata-check-002",
+      "type": "condition",
+      "name": "InitData Validation",
+      "description": "Validate Telegram WebApp initData and extract user info",
+      "position": { "x": 300, "y": 100 },
+      "properties": {
+        "condition": "{{initData}} && {{initData}}.length >= 100",
+        "validation": {
+          "checkTelegramWebApp": true,
+          "extractUserId": true,
+          "minLength": 100,
+          "validateHash": true
+        },
+        "analytics": {
+          "event": "initdata-validation",
+          "track": true
+        }
+      },
+      "inputs": ["connection-001"],
+      "outputs": ["connection-002", "connection-error-001"]
+    },
+    {
+      "id": "error-fallback-003",
+      "type": "message",
+      "name": "Error Fallback",
+      "description": "Display error message for invalid initData",
+      "position": { "x": 300, "y": 300 },
+      "properties": {
+        "message": "⚠️ Telegram WebApp validation failed. Please restart the app through Telegram.",
+        "type": "error",
+        "showRetry": true,
+        "retryButton": "🔄 Retry",
+        "analytics": {
+          "event": "initdata-validation-failed",
+          "track": true
+        }
+      },
+      "inputs": ["connection-error-001"],
+      "outputs": ["connection-003"]
+    },
+    {
+      "id": "sync-progress-004",
+      "type": "api-call",
+      "name": "Sync User Progress",
+      "description": "Call /api/sync-progress to get user data and XP",
+      "position": { "x": 500, "y": 100 },
+      "properties": {
+        "method": "POST",
+        "url": "{{apis.baseUrl}}/api/sync-progress",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Telegram-Init-Data": "{{initData}}"
+        },
+        "body": {
+          "initData": "{{initData}}",
+          "userId": "{{userId}}",
+          "timestamp": "{{$timestamp}}"
+        },
+        "timeout": "{{apis.timeout}}",
+        "responseMapping": {
+          "userXP": "response.xp",
+          "questStep": "response.quest_step",
+          "userLevel": "response.level"
+        },
+        "analytics": {
+          "event": "api-sync-completed",
+          "track": true
+        }
+      },
+      "inputs": ["connection-002"],
+      "outputs": ["connection-004", "connection-error-002"]
+    },
+    {
+      "id": "api-error-005",
+      "type": "message",
+      "name": "API Error Handler",
+      "description": "Handle API sync errors with retry mechanism",
+      "position": { "x": 500, "y": 300 },
+      "properties": {
+        "message": "🔄 Sync failed. Retrying connection...",
+        "type": "warning",
+        "autoRetry": true,
+        "retryDelay": 2000,
+        "maxRetries": 3,
+        "analytics": {
+          "event": "api-sync-failed",
+          "track": true
+        }
+      },
+      "inputs": ["connection-error-002"],
+      "outputs": ["connection-005"]
+    },
+    {
+      "id": "xp-check-006",
+      "type": "condition",
+      "name": "XP Level Check",
+      "description": "Check if user has sufficient XP for PDF generation",
+      "position": { "x": 700, "y": 100 },
+      "properties": {
+        "condition": "{{userXP}} >= 50",
+        "branches": {
+          "high-xp": "{{userXP}} >= 100",
+          "medium-xp": "{{userXP}} >= 50 && {{userXP}} < 100",
+          "low-xp": "{{userXP}} < 50"
+        },
+        "analytics": {
+          "event": "xp-checked",
+          "track": true,
+          "properties": {
+            "userXP": "{{userXP}}",
+            "branch": "{{$branch}}"
+          }
+        }
+      },
+      "inputs": ["connection-004"],
+      "outputs": ["connection-006", "connection-007", "connection-008"]
+    },
+    {
+      "id": "pdf-generate-007",
+      "type": "api-call",
+      "name": "Generate PDF",
+      "description": "Generate personalized PDF based on user XP and progress",
+      "position": { "x": 900, "y": 50 },
+      "properties": {
+        "method": "POST",
+        "url": "{{apis.baseUrl}}/api/pdf",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Telegram-Init-Data": "{{initData}}"
+        },
+        "body": {
+          "userId": "{{userId}}",
+          "xp": "{{userXP}}",
+          "questStep": "{{questStep}}",
+          "template": "awakening-report",
+          "level": "{{userLevel}}"
+        },
+        "timeout": 60000,
+        "responseMapping": {
+          "pdfUrl": "response.downloadUrl",
+          "pdfId": "response.pdfId"
+        },
+        "analytics": {
+          "event": "pdf-generated",
+          "track": true
+        }
+      },
+      "inputs": ["connection-006"],
+      "outputs": ["connection-009"]
+    },
+    {
+      "id": "xp-reward-008",
+      "type": "action",
+      "name": "Award XP",
+      "description": "Award XP points for completing the flow",
+      "position": { "x": 900, "y": 150 },
+      "properties": {
+        "action": "award-xp",
+        "amount": 25,
+        "reason": "Completed Trae Awakens flow",
+        "updateUser": true,
+        "analytics": {
+          "event": "xp-awarded",
+          "track": true,
+          "properties": {
+            "amount": 25,
+            "newTotal": "{{userXP + 25}}"
+          }
+        }
+      },
+      "inputs": ["connection-007"],
+      "outputs": ["connection-010"]
+    },
+    {
+      "id": "low-xp-message-009",
+      "type": "message",
+      "name": "Insufficient XP",
+      "description": "Message for users with low XP",
+      "position": { "x": 900, "y": 250 },
+      "properties": {
+        "message": "🎯 Complete more quests to unlock PDF generation! Current XP: {{userXP}}/50",
+        "type": "info",
+        "showProgress": true,
+        "progressBar": {
+          "current": "{{userXP}}",
+          "max": 50,
+          "color": "#3b82f6"
+        }
+      },
+      "inputs": ["connection-008"],
+      "outputs": ["connection-011"]
+    },
+    {
+      "id": "pdf-delivery-010",
+      "type": "message",
+      "name": "PDF Ready",
+      "description": "Deliver PDF to user with download link",
+      "position": { "x": 1100, "y": 100 },
+      "properties": {
+        "message": "🎉 Your Awakening Report is ready!",
+        "attachments": [
+          {
+            "type": "file",
+            "url": "{{pdfUrl}}",
+            "name": "Trae_Awakening_Report_{{userId}}.pdf"
+          }
+        ],
+        "buttons": [
+          {
+            "text": "📥 Download PDF",
+            "action": "download",
+            "url": "{{pdfUrl}}"
+          },
+          {
+            "text": "📤 Share",
+            "action": "share",
+            "url": "{{pdfUrl}}"
+          }
+        ]
+      },
+      "inputs": ["connection-009"],
+      "outputs": ["connection-012"]
+    },
+    {
+      "id": "cta-portal-011",
+      "type": "message",
+      "name": "Portal CTA",
+      "description": "Call-to-action for portal navigation",
+      "position": { "x": 1100, "y": 200 },
+      "properties": {
+        "message": "🚀 Ready to enter the Portal?",
+        "buttons": [
+          {
+            "text": "🌀 Enter Portal",
+            "action": "navigate",
+            "url": "/portal"
+          },
+          {
+            "text": "📊 View Dashboard",
+            "action": "navigate",
+            "url": "/dashboard"
+          },
+          {
+            "text": "🎮 Continue Quest",
+            "action": "navigate",
+            "url": "/quest"
+          }
+        ]
+      },
+      "inputs": ["connection-010", "connection-011", "connection-012"],
+      "outputs": ["connection-013"]
+    },
+    {
+      "id": "final-screen-012",
+      "type": "end",
+      "name": "Flow Complete",
+      "description": "Final screen with completion status",
+      "position": { "x": 1300, "y": 150 },
+      "properties": {
+        "message": "✨ Trae Awakens flow completed successfully!",
+        "analytics": {
+          "event": "flow-completed",
+          "track": true,
+          "properties": {
+            "userId": "{{userId}}",
+            "xp": "{{userXP}}",
+            "pdfGenerated": "{{pdfUrl ? true : false}}",
+            "completionTime": "{{$duration}}"
+          }
+        }
+      },
+      "inputs": ["connection-013", "connection-003"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "connection-001",
+      "from": "start-node-001",
+      "to": "initdata-check-002",
+      "type": "default",
+      "label": "Start Flow"
+    },
+    {
+      "id": "connection-002",
+      "from": "initdata-check-002",
+      "to": "sync-progress-004",
+      "type": "success",
+      "condition": "valid-initdata",
+      "label": "Valid InitData"
+    },
+    {
+      "id": "connection-error-001",
+      "from": "initdata-check-002",
+      "to": "error-fallback-003",
+      "type": "error",
+      "condition": "invalid-initdata",
+      "label": "Invalid InitData"
+    },
+    {
+      "id": "connection-003",
+      "from": "error-fallback-003",
+      "to": "final-screen-012",
+      "type": "default",
+      "label": "Error Exit"
+    },
+    {
+      "id": "connection-004",
+      "from": "sync-progress-004",
+      "to": "xp-check-006",
+      "type": "success",
+      "label": "Sync Success"
+    },
+    {
+      "id": "connection-error-002",
+      "from": "sync-progress-004",
+      "to": "api-error-005",
+      "type": "error",
+      "label": "Sync Failed"
+    },
+    {
+      "id": "connection-005",
+      "from": "api-error-005",
+      "to": "sync-progress-004",
+      "type": "retry",
+      "label": "Retry Sync"
+    },
+    {
+      "id": "connection-006",
+      "from": "xp-check-006",
+      "to": "pdf-generate-007",
+      "type": "conditional",
+      "condition": "high-xp",
+      "label": "High XP (≥100)"
+    },
+    {
+      "id": "connection-007",
+      "from": "xp-check-006",
+      "to": "xp-reward-008",
+      "type": "conditional",
+      "condition": "medium-xp",
+      "label": "Medium XP (50-99)"
+    },
+    {
+      "id": "connection-008",
+      "from": "xp-check-006",
+      "to": "low-xp-message-009",
+      "type": "conditional",
+      "condition": "low-xp",
+      "label": "Low XP (<50)"
+    },
+    {
+      "id": "connection-009",
+      "from": "pdf-generate-007",
+      "to": "pdf-delivery-010",
+      "type": "success",
+      "label": "PDF Generated"
+    },
+    {
+      "id": "connection-010",
+      "from": "xp-reward-008",
+      "to": "cta-portal-011",
+      "type": "default",
+      "label": "XP Awarded"
+    },
+    {
+      "id": "connection-011",
+      "from": "low-xp-message-009",
+      "to": "cta-portal-011",
+      "type": "default",
+      "label": "Continue"
+    },
+    {
+      "id": "connection-012",
+      "from": "pdf-delivery-010",
+      "to": "cta-portal-011",
+      "type": "default",
+      "label": "PDF Delivered"
+    },
+    {
+      "id": "connection-013",
+      "from": "cta-portal-011",
+      "to": "final-screen-012",
+      "type": "default",
+      "label": "Complete"
+    }
+  ],
+  "settings": {
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "errorHandling": "graceful",
+    "analytics": true,
+    "debugMode": false,
+    "performance": {
+      "caching": true,
+      "compression": true,
+      "lazyLoading": true
+    },
+    "security": {
+      "validateInitData": true,
+      "rateLimiting": true,
+      "sanitizeInputs": true
+    }
+  },
+  "deployment": {
+    "platform": "netlify",
+    "url": "https://neuropul-trae-ai.netlify.app",
+    "environment": "production",
+    "buildCommand": "npm run build",
+    "publishDirectory": "dist"
+  },
+  "integrations": {
+    "telegram": {
+      "botToken": "6658801962:AAEvGpN-NZ2TUzS9aFcWXBKhDLrOhvTjlYM",
+      "webhookUrl": "https://neuropul-trae-ai.netlify.app/api/webhook"
+    },
+    "cloudflare": {
+      "accountId": "14ce9e04574f2e6d825e56ee603e5cd5",
+      "r2Storage": "neuropul-cdn"
+    }
+  },
+  "metadata": {
+    "created": "2025-01-16T15:30:00Z",
+    "lastModified": "2025-01-16T16:00:00Z",
+    "tags": ["telegram", "webapp", "xp", "pdf", "neuropul", "ai", "production"],
+    "category": "telegram-automation",
+    "complexity": "advanced",
+    "status": "production-ready"
+  }
+}
